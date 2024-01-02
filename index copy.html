@@ -1,0 +1,206 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realtime Chat App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      width: 300px;
+      margin-bottom: 10px;
+    }
+
+    .message {
+      display: flex;
+      max-width: 80%;
+      margin-bottom: 10px;
+    }
+
+    .message strong {
+      margin-right: 5px;
+    }
+
+    .user1 .message {
+      justify-content: flex-end;
+    }
+
+    .user1 .message div {
+      background-color: #d3e3fc;
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .user2 .message div {
+      background-color: #f0f0f0;
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    #message-input {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 10px;
+      width: 300px;
+    }
+
+    #message-input input {
+      margin-bottom: 5px;
+      padding: 5px;
+    }
+
+    #message-input select {
+      margin-bottom: 5px;
+      padding: 5px;
+    }
+
+    #message-input button {
+      padding: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="chat-container" class="chat-container"></div>
+
+  <div id="message-input" style="display: none;">
+    <input type="text" id="message" placeholder="Type your message...">
+    <select id="user-selector"></select>
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  
+
+<script>
+    const socket = io();
+    const chatContainer = document.getElementById('chat-container');
+    const messageInput = document.getElementById('message-input');
+    const userSelector = document.getElementById('user-selector');
+  
+    function appendMessage(user, message) {
+  const messageContainer = document.createElement('div');
+  messageContainer.classList.add('message');
+  messageContainer.classList.add(user.toLowerCase());
+
+  const messageDiv = document.createElement('div');
+
+  if (user === 'Server') {
+    messageContainer.classList.add('server-message');
+    messageDiv.innerHTML = message; 
+  } else {
+    messageDiv.innerHTML = `<strong>${user}:</strong> ${message}`;
+  }
+
+  messageContainer.appendChild(messageDiv);
+  chatContainer.appendChild(messageContainer);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+  
+    function showChat() {
+      messageInput.style.display = 'flex';
+    }
+  
+    function sendMessage() {
+      const message = document.getElementById('message').value;
+      const selectedUser = userSelector.value;
+  
+      if (message.trim() !== '') {
+        if (message.trim() === '!time') {
+          appendMessage(selectedUser, message);
+          // Meminta waktu server saat pengguna mengirim "!time"
+          socket.emit('requestServerTime');
+        } else {
+          // Pesan biasa
+          appendMessage(selectedUser, message);
+          socket.emit('chatMessage', { user: selectedUser, message });
+        }
+  
+        document.getElementById('message').value = '';
+      }
+    }
+  
+    function login() {
+  const user1Name = prompt('Enter User 1 name:');
+  const user2Name = prompt('Enter User 2 name:');
+
+  const option1 = document.createElement('option');
+  option1.value = user1Name;
+  option1.text = user1Name;
+  userSelector.add(option1);
+
+  const option2 = document.createElement('option');
+  option2.value = user2Name;
+  option2.text = user2Name;
+  userSelector.add(option2);
+
+  socket.emit('login', { userName: user1Name, userRole: 'User1' });
+  socket.emit('login', { userName: user2Name, userRole: 'User2' });
+
+  // Hanya butuh satu requestServerTime setelah login
+  socket.emit('requestServerTime');
+
+  showChat();
+}
+
+
+    // Call login when the page loads
+    login();
+
+    // // Handle incoming messages
+    // socket.on('chatMessage', async (data) => {
+    // const { user: userName, message } = data;
+    // console.log('Received message:', userName, message);
+    // appendMessage(userName, message);
+    // });
+    
+    // // Handle incoming messages
+    // socket.on('serverTime', async(data) =>{
+    
+    // const {time} = data;
+    // console.log('Received message:', 'Server', time);
+
+    // appendMessage('Server', time);
+    // });
+   
+
+    // Handle server time response
+    socket.on('serverTime', (data) => {
+    appendMessage('Server', data.time);
+    });
+
+    // Handle updated active users
+    socket.on('activeUsers', (users) => {
+    console.log('Active Users:', users);
+    // Update UI with the active users list
+    });
+
+    // Handle login error
+    socket.on('loginError', (errorData) => {
+    console.error('Login error:', errorData.error);
+    alert(`Login error: ${errorData.error}`);
+    });
+
+  </script>
+
+  
+</body>
+</html>
